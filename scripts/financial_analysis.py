@@ -2,6 +2,9 @@ import pandas as pd
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from textblob import TextBlob
+import matplotlib.pyplot as plt
+
+import re
 
 
 def eda_analyst_ratings(df):
@@ -74,3 +77,80 @@ def perform_topic_modeling(df, num_topics=5, num_words=10):
         print([vectorizer.get_feature_names_out()[i] for i in topic.argsort()[-num_words:]])
     
     return lda, dtm, vectorizer
+
+
+def analyze_publication_frequency(df):
+    # Print the original data type and a few rows of the date column
+    print("Original 'date' column data type and sample data:")
+    print(df['date'].dtype)
+    print(df['date'].head())
+
+   # Convert the date column to datetime, handling timezone info correctly
+    df['date'] = pd.to_datetime(df['date'], utc=True, errors='coerce')
+
+    # Print the data types after conversion
+    print("\nData type of 'date' column after conversion:")
+    print(df['date'].dtype)
+
+    # Print the first few rows of the date column after conversion
+    print("\nConverted 'date' column:")
+    print(df['date'])
+    # Print the data type and some sample data to confirm the conversion
+    print("\nData type of 'date' column after conversion:")
+    print(df['date'].dtype)
+    print("\nSample of 'date' column after conversion:")
+    print(df['date'].head())
+
+    # Check if any NaT values were created during conversion
+    print("\nNumber of NaT values in 'date' column after conversion:")
+    print(df['date'].isna().sum())
+
+    # Drop any rows with NaT in the 'date' column
+    df = df.dropna(subset=['date'])
+
+    # Confirm no NaT values remain
+    print("\nConfirming no NaT values remain in 'date' column:")
+    print(df['date'].isna().sum())
+
+    # Aggregate the data by date
+    df['publication_date'] = df['date'].dt.date
+    publication_counts = df['publication_date'].value_counts().sort_index()
+
+    # Plot the time series of publication frequency
+    plt.figure(figsize=(12, 6))
+    publication_counts.plot(kind='line', title='Publication Frequency Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Number of Articles Published')
+    plt.grid(True)
+    plt.show()
+
+    # Return the publication counts for further analysis if needed
+    return publication_counts
+
+
+def analyze_publishers(df):
+    # Count the number of articles per publisher
+    publisher_counts = df['publisher'].value_counts()
+    
+    # Display the top 10 publishers
+    print("Top 10 Publishers by Number of Articles:")
+    print(publisher_counts.head(10))
+    
+    return publisher_counts
+
+
+def analyze_email_domains(df):
+    # Identify publishers that look like email addresses
+    email_publishers = df[df['publisher'].str.contains('@', na=False)]
+    
+    # Extract domain names from email addresses
+    email_publishers['domain'] = email_publishers['publisher'].apply(lambda x: re.findall(r'@([\w\.-]+)', x)[0])
+    
+    # Count the number of articles per domain
+    domain_counts = email_publishers['domain'].value_counts()
+    
+    # Display the top 10 domains
+    print("Top 10 Domains by Number of Articles (from email addresses):")
+    print(domain_counts.head(10))
+    
+    return domain_counts

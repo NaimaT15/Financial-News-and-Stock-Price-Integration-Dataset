@@ -3,8 +3,14 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from textblob import TextBlob
 import matplotlib.pyplot as plt
-
+from gensim import corpora
+from gensim.models import LdaModel
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
 import re
+import talib as ta
+import pynance as pn
+import pyfolio as pf
 
 
 def eda_analyst_ratings(df):
@@ -57,26 +63,30 @@ def perform_sentiment_analysis(df):
     return df
 
 
-    
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation
 
-def perform_topic_modeling(df, num_topics=5, num_words=10):
+def perform_topic_modeling_gensim(df, num_topics=5, num_words=10, sample_size=None):
+    # Subsample the data if a sample size is provided
+    if sample_size:
+        df = df.sample(n=sample_size, random_state=42)
+
     # Initialize CountVectorizer for basic keyword extraction
     vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english')
     dtm = vectorizer.fit_transform(df['headline'])
-    
-    # Fit LDA model to identify topics
-    lda = LatentDirichletAllocation(n_components=num_topics, random_state=42)
-    lda.fit(dtm)
-    
-    # Extract topics
-    print("Identified Topics:")
-    for index, topic in enumerate(lda.components_):
-        print(f"Topic #{index + 1}:")
-        print([vectorizer.get_feature_names_out()[i] for i in topic.argsort()[-num_words:]])
-    
-    return lda, dtm, vectorizer
+    vocab = vectorizer.get_feature_names_out()
+
+    # Convert to gensim format
+    corpus = [[(i, freq) for i, freq in zip(doc.indices, doc.data)] for doc in dtm]
+    id2word = corpora.Dictionary([vocab])
+
+    # Fit LDA model using gensim
+    lda_model = LdaModel(corpus=corpus, num_topics=num_topics, id2word=id2word, passes=15, random_state=42)
+
+    # Print topics
+    topics = lda_model.print_topics(num_topics=num_topics, num_words=num_words)
+    for topic in topics:
+        print(topic)
+
+    return lda_model, corpus, id2word
 
 
 def analyze_publication_frequency(df):
@@ -85,7 +95,7 @@ def analyze_publication_frequency(df):
     print(df['date'].dtype)
     print(df['date'].head())
 
-   # Convert the date column to datetime, handling timezone info correctly
+    # Convert the date column to datetime, handling timezone info correctly
     df['date'] = pd.to_datetime(df['date'], utc=True, errors='coerce')
 
     # Print the data types after conversion
@@ -116,9 +126,10 @@ def analyze_publication_frequency(df):
     df['publication_date'] = df['date'].dt.date
     publication_counts = df['publication_date'].value_counts().sort_index()
 
-    # Plot the time series of publication frequency
+    # Plot the time series of publication frequency as a line plot
     plt.figure(figsize=(12, 6))
-    publication_counts.plot(kind='line', title='Publication Frequency Over Time')
+    plt.plot(publication_counts, linestyle='-', marker=None, color='b')
+    plt.title('Publication Frequency Over Time')
     plt.xlabel('Date')
     plt.ylabel('Number of Articles Published')
     plt.grid(True)
@@ -137,6 +148,34 @@ def analyze_publishers(df):
     print(publisher_counts.head(10))
     
     return publisher_counts
+def visualize_sentiment_distribution(df):
+    # Count the occurrences of each sentiment category
+    sentiment_counts = df['sentiment_label'].value_counts()
+    
+    # Plot a bar chart of the sentiment distribution
+    plt.figure(figsize=(10, 6))
+    sentiment_counts.plot(kind='bar', color=['green', 'red', 'blue'])
+    plt.title('Distribution of News Sentiment')
+    plt.xlabel('Sentiment')
+    plt.ylabel('Number of Articles')
+    plt.xticks(rotation=0)
+    plt.show()
+
+def visualize_sentiment_by_publisher(df, top_n=5):
+    # Select the top N publishers
+    top_publishers = df['publisher'].value_counts().head(top_n).index
+    filtered_df = df[df['publisher'].isin(top_publishers)]
+    
+    # Group by publisher and sentiment label, then count
+    sentiment_by_publisher = filtered_df.groupby(['publisher', 'sentiment_label']).size().unstack(fill_value=0)
+    
+    # Plot the sentiment distribution by publisher
+    sentiment_by_publisher.plot(kind='bar', stacked=True, figsize=(12, 8))
+    plt.title('Sentiment Distribution by Publisher')
+    plt.xlabel('Publisher')
+    plt.ylabel('Number of Articles')
+    plt.xticks(rotation=45)
+    plt.show()
 
 
 def analyze_email_domains(df):
@@ -154,3 +193,79 @@ def analyze_email_domains(df):
     print(domain_counts.head(10))
     
     return domain_counts
+
+
+
+# TASK 2
+def load_stock_data(file_path):
+    # Load the stock price data
+    df = pd.read_csv(file_path, parse_dates=['Date'], index_col='Date')
+    
+    # Ensure the data has the necessary columns
+    required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+    if not all(column in df.columns for column in required_columns):
+        raise ValueError(f"Data must include the following columns: {required_columns}")
+    
+    
+    return df
+
+
+
+def apply_technical_indicators(df):
+    # Calculate Simple Moving Average (SMA)
+    df['SMA_20'] = ta.SMA(df['Close'], timeperiod=20)
+    
+    # Calculate Relative Strength Index (RSI)
+    df['RSI_14'] = ta.RSI(df['Close'], timeperiod=14)
+    
+    # Calculate Moving Average Convergence Divergence (MACD)
+    df['MACD'], df['MACD_signal'], df['MACD_hist'] = ta.MACD(df['Close'], 
+                                                              fastperiod=12, 
+                                                              slowperiod=26, 
+                                                              signalperiod=9)
+    
+
+    
+    return df
+
+
+
+def calculate_financial_metrics(df):
+    # Example: Calculate daily returns using PyNance
+    df['daily_return'] = df['Close'].pct_change()
+    
+
+    return df
+
+
+
+def visualize_stock_data(df):
+    plt.figure(figsize=(14, 7))
+    
+    # Plot Closing Price
+    plt.subplot(3, 1, 1)
+    plt.plot(df.index, df['Close'], label='Close Price')
+    plt.plot(df.index, df['SMA_20'], label='20-Day SMA')
+    plt.title('Stock Closing Price and SMA')
+    plt.legend()
+    
+    # Plot RSI
+    plt.subplot(3, 1, 2)
+    plt.plot(df.index, df['RSI_14'], label='RSI (14)')
+    plt.axhline(y=70, color='r', linestyle='--')
+    plt.axhline(y=30, color='g', linestyle='--')
+    plt.title('RSI (14)')
+    plt.legend()
+    
+    # Plot MACD
+    plt.subplot(3, 1, 3)
+    plt.plot(df.index, df['MACD'], label='MACD')
+    plt.plot(df.index, df['MACD_signal'], label='Signal Line')
+    plt.bar(df.index, df['MACD_hist'], label='MACD Histogram')
+    plt.title('MACD')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.show()
+
+

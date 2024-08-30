@@ -6,24 +6,36 @@ Project Structure
 ├── .github
 │   └── workflows
 │       └── unittests.yml       # CI/CD pipeline configuration for unit tests
+
 ├── .notebook
 │   └──                         # Jupyter Notebooks directory
+
 ├── .vscode
 │   └── settings.json           # VS Code specific settings
+
 ├── data
 │   └──                         # Directory for datasets
+
 ├── notebooks
 │   ├── eda.ipynb               # Notebook for Exploratory Data Analysis
+
 │   └── financial_analysis_notebook.ipynb  # Notebook for detailed financial analysis
+
 ├── scripts
 │   ├── financial_analysis.py   # Script for performing financial analysis
+
 │   └── load_data.py            # Script for loading data
+
 ├── src
 │   └──                         # Main source code for the project
+
 ├── venv
 │   └──                         # Virtual environment directory
+
 ├── .gitignore                  # Specifies files to ignore in git
+
 ├── README.md                   # General project documentation
+
 └── requirements.txt            # Lists project dependencies
 
 

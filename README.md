@@ -25,14 +25,26 @@ Project Structure
 ├── .gitignore                  # Specifies files to ignore in git
 ├── README.md                   # General project documentation
 └── requirements.txt            # Lists project dependencies
+
+
+
 Installation
+
+
     1. Clone the Repository:
+    
     git clone  https://github.com/NaimaT15/Financial-News-and-Stock-Price-Integration-Dataset.git
+    
     cd FinancialandStock
+    
     2. Setup Virtual Environment (Optional but recommended):
+    
     python -m venv venv
+    
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    
     3. Install Dependencies:
+    
     pip install -r requirements.txt
 
 

@@ -269,3 +269,32 @@ def visualize_stock_data(df):
     plt.show()
 
 
+#Task 3
+import pandas as pd
+import os
+
+def load_and_concatenate_stock_data(file_paths):
+    data_frames = []
+    for file_path in file_paths:
+        stock_symbol = os.path.basename(file_path).split('_')[0]
+        df = pd.read_csv(file_path)
+        df['stock'] = stock_symbol  # Adding 'stock' column
+        data_frames.append(df)
+    return pd.concat(data_frames, ignore_index=True)
+
+def normalize_dates(news_df, stock_df, date_format='%Y-%m-%d'):
+    try:
+        news_df['date'] = pd.to_datetime(news_df['date'], utc=True, errors='coerce')
+        stock_df['Date'] = pd.to_datetime(stock_df['Date'], utc=True, errors='coerce')
+        news_df['date'] = news_df['date'].dt.strftime(date_format)
+        stock_df['Date'] = stock_df['Date'].dt.strftime(date_format)
+    except Exception as e:
+        print(f"Error processing dates: {e}")
+        return None
+
+    try:
+        merged_df = pd.merge(news_df, stock_df, left_on=['date', 'stock'], right_on=['Date', 'stock'], how='inner')
+        return merged_df
+    except Exception as e:
+        print(f"Error merging data: {e}")
+        return None
